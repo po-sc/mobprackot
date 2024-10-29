@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     id("kotlin-kapt")
+    id("dagger.hilt.android.plugin")
 }
 
 kapt {
@@ -80,8 +81,12 @@ dependencies {
     kapt("com.github.bumptech.glide:compiler:4.12.0")
 
     implementation("androidx.room:room-runtime:2.6.1")
-    annotationProcessor("androidx.room:room-compiler:2.6.1")
     kapt("androidx.room:room-compiler:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
+
+    implementation("com.google.dagger:hilt-android:2.52")
+    annotationProcessor("com.google.dagger:hilt-compiler:2.52")
+    kapt("com.google.dagger:hilt-compiler:2.52")
+
 
 }

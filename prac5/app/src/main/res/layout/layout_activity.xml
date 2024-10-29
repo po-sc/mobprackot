@@ -7,12 +7,12 @@
     android:orientation="vertical"
     tools:context=".MainActivity">
 
+
     <ImageView
         android:id="@+id/imageView"
-        android:layout_width="300dp"
-        android:layout_height="300dp"
+        android:layout_width="411dp"
+        android:layout_height="518dp"
         android:scaleType="centerCrop" />
-
 
     <Button
         android:id="@+id/buttonLoad"

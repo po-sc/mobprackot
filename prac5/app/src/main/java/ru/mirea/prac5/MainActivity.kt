@@ -1,25 +1,28 @@
 package ru.mirea.prac5
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.view.Menu
-import android.view.MenuItem
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
-import retrofit2.*
-import retrofit2.converter.gson.GsonConverterFactory
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
+
+    // Внедрение UnsplashApiService и AppDatabase через Hilt
+    @Inject
+    lateinit var unsplashService: UnsplashApiService
+
+    @Inject
+    lateinit var db: AppDatabase
 
     private lateinit var imageView: ImageView
     private lateinit var buttonLoad: Button
     private lateinit var buttonViewSaved: Button
-    private lateinit var db: AppDatabase
 
     private val ACCESS_KEY = "GFhSsMRZlkOWg5Y3nZGGcnSZ78JzDQy1zqkBsCOSe2M"
 
@@ -27,83 +30,46 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.layout_activity)
 
+        // Инициализация элементов интерфейса
         imageView = findViewById(R.id.imageView)
         buttonLoad = findViewById(R.id.buttonLoad)
         buttonViewSaved = findViewById(R.id.buttonViewSaved)
-        db = AppDatabase.getDatabase(this)
 
+        // Установите обработчик нажатия кнопки для загрузки фото
         buttonLoad.setOnClickListener {
             loadRandomPhoto()
         }
 
-        buttonViewSaved.setOnClickListener{
+        // Обработчик нажатия кнопки для перехода на экран сохраненных фото
+        buttonViewSaved.setOnClickListener {
             val intent = Intent(this, SavedPhotosActivity::class.java)
             startActivity(intent)
         }
     }
 
     private fun loadRandomPhoto() {
-        val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.unsplash.com/")
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
+        // Выполнение запроса с использованием внедренного UnsplashApiService
+        val call = unsplashService.getRandomPhoto(ACCESS_KEY)
 
-        val service = retrofit.create(UnsplashApiService::class.java)
-        val call = service.getRandomPhoto(ACCESS_KEY)
-
-        call.enqueue(object : Callback<UnsplashPhoto> {
-            override fun onResponse(call: Call<UnsplashPhoto>, response: Response<UnsplashPhoto>) {
+        // Выполнение запроса
+        call.enqueue(object : retrofit2.Callback<UnsplashPhoto> {
+            override fun onResponse(call: retrofit2.Call<UnsplashPhoto>, response: retrofit2.Response<UnsplashPhoto>) {
                 if (response.isSuccessful) {
                     val photo = response.body()
                     val imageUrl = photo?.urls?.regular
 
-                    if (imageUrl != null) {
-                        Glide.with(this@MainActivity)
-                            .load(imageUrl)
-                            .into(imageView)
-
-                        // Сохранение метаданных в базу данных
-                        lifecycleScope.launch {
-                            db.photoDao().insertPhoto(
-                                PhotoEntity(
-                                    author = photo.user.name,
-                                    width = photo.width,
-                                    height = photo.height,
-                                    date = photo.created_at
-                                )
-                            )
-                            Toast.makeText(this@MainActivity, "Фото сохранено", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+                    // Загрузка изображения с помощью Glide
+                    Glide.with(this@MainActivity)
+                        .load(imageUrl)
+                        .into(imageView)
                 } else {
                     Toast.makeText(this@MainActivity, "Ошибка загрузки изображения", Toast.LENGTH_SHORT).show()
                 }
             }
 
-            override fun onFailure(call: Call<UnsplashPhoto>, t: Throwable) {
+            override fun onFailure(call: retrofit2.Call<UnsplashPhoto>, t: Throwable) {
                 Toast.makeText(this@MainActivity, "Ошибка: ${t.message}", Toast.LENGTH_SHORT).show()
             }
         })
-
     }
-
-//
-//    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-//        menuInflater.inflate(R.menu.main_menu, menu)
-//        return true
-//    }
-//
-//
-//    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-//        return when (item.itemId) {
-//            R.id.action_view_saved_photos -> {
-//                val intent = Intent(this, SavedPhotosActivity::class.java)
-//                startActivity(intent)
-//                true
-//            }
-//            else -> super.onOptionsItemSelected(item)
-//        }
-//    }
-
-
 }
