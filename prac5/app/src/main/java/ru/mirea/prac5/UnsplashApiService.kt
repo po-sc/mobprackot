@@ -8,4 +8,3 @@ interface UnsplashApiService {
     @GET("photos/random")
     fun getRandomPhoto(@Query("client_id") clientId: String): Call<UnsplashPhoto>
 }
-
