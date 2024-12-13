@@ -12,7 +12,6 @@ import java.io.File
 
 class AppTests {
 
-    // Правило для Room
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
@@ -21,7 +20,6 @@ class AppTests {
 
     @Before
     fun setup() {
-        // Создаем in-memory базу данных
         database = Room.inMemoryDatabaseBuilder(
             ApplicationProvider.getApplicationContext(),
             AppDatabase::class.java
