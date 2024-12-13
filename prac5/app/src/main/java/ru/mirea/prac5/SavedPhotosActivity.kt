@@ -1,36 +1,59 @@
 package ru.mirea.prac5
 
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class SavedPhotosActivity : AppCompatActivity() {
-    private lateinit var recyclerView: RecyclerView
-    private lateinit var adapter: PhotoAdapter
+class SavedPhotosActivity : ComponentActivity() {
 
-    // Внедрение базы данных через Hilt
     @Inject
     lateinit var db: AppDatabase
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_saved_photos)
+        setContent {
+            var photos by remember { mutableStateOf(emptyList<PhotoEntity>()) }
 
-        recyclerView = findViewById(R.id.recyclerView)
+            // Загрузка данных из бд
+            LaunchedEffect(Unit) {
+                lifecycleScope.launch {
+                    db.photoDao().getAllPhotos().collect { list ->
+                        photos = list
+                    }
+                }
+            }
 
-        recyclerView.layoutManager = LinearLayoutManager(this)
+            SavedPhotosScreen(photos)
+        }
+    }
+}
 
-        lifecycleScope.launch {
-            db.photoDao().getAllPhotos().collect { photos ->
-                adapter = PhotoAdapter(photos)
-                recyclerView.adapter = adapter
+@Composable
+fun SavedPhotosScreen(photos: List<PhotoEntity>) {
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        Text("Saved Photos", modifier = Modifier.padding(bottom = 16.dp))
+        LazyColumn {
+            items(photos) { photo ->
+                Column(modifier = Modifier.padding(8.dp)) {
+                    Text("Автор: ${photo.author}")
+                    Text("Размер: ${photo.width}x${photo.height}")
+                    Text("Дата: ${photo.date}")
+                }
             }
         }
     }
