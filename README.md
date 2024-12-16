@@ -1,1 +1,1 @@
-pracs Kotlin Mobile App Developer
+Mobile app development on Kotlin: experiments and examples.
