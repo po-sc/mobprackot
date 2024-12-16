@@ -115,4 +115,13 @@ dependencies {
     testImplementation("org.mockito.kotlin:mockito-kotlin:4.0.0")
     testImplementation("org.robolectric:robolectric:4.8")
     androidTestImplementation("androidx.arch.core:core-testing:2.1.0")
+
+    implementation("androidx.compose.material:material-icons-extended:1.5.1")
+
+
+
+
+
+    implementation("androidx.compose.material:material:1.5.1")
+
 }
