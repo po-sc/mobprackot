@@ -1,14 +1,13 @@
-package beatrate.pro.equipmentapp.ui     // ← поменяйте, если у вас другой package
+package beatrate.pro.equipmentapp.ui
 
-import android.util.Log
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import beatrate.pro.equipmentapp.data.EquipmentItem
-import beatrate.pro.equipmentapp.data.EquipmentRepository
+import beatrate.pro.equipmentapp.data.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-/* ---------- UI-состояние экрана оборудования ---------- */
+/* ---------- UI-state ---------- */
 sealed interface EquipmentUiState {
     object Loading : EquipmentUiState
     data class Success(val list: List<EquipmentItem>) : EquipmentUiState
@@ -16,44 +15,58 @@ sealed interface EquipmentUiState {
 }
 
 /* ---------- ViewModel ---------- */
-class EquipmentViewModel(
+class EquipmentViewModel @JvmOverloads constructor(   // ← аннотация стоит здесь!
+    app: Application,
     private val repo: EquipmentRepository = EquipmentRepository()
-) : ViewModel() {
+) : AndroidViewModel(app) {
 
-    /* текст в поле поиска */
+    /* текст поиска */
     private val _query = MutableStateFlow("")
-    val query: StateFlow<String> = _query.asStateFlow()          // <-- публичный read-only
+    val query: StateFlow<String> = _query.asStateFlow()
 
-    /* общее состояние экрана (загрузка / успех / ошибка) */
+    /* история */
+    private val _history = MutableStateFlow(
+        SearchHistoryManager.getHistory(app)
+    )
+    val history: StateFlow<List<String>> = _history.asStateFlow()
+
+    /* загрузка / ошибка */
     private val _ui = MutableStateFlow<EquipmentUiState>(EquipmentUiState.Loading)
     val ui: StateFlow<EquipmentUiState> = _ui.asStateFlow()
 
-    /* отфильтрованный список — обновляется при изменении _query или _ui */
+    /* отфильтрованный список */
     val filtered: StateFlow<List<EquipmentItem>> = combine(_query, _ui) { q, state ->
         if (state is EquipmentUiState.Success) {
             if (q.isBlank()) state.list
-            else state.list.filter { it.name.contains(q, ignoreCase = true) }
+            else state.list.filter { it.name.contains(q, true) }
         } else emptyList()
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    init {
-        refresh()   // первый запрос при создании VM
+    init { refresh() }
+
+    /* --- публичные методы --- */
+
+    fun onQueryChange(text: String) { _query.value = text }
+
+    /** сохранить запрос в историю при нажатии Search */
+    fun commitQuery() {
+        val q = _query.value.trim()
+        if (q.isBlank()) return
+        SearchHistoryManager.addQuery(getApplication(), q)
+        _history.value = SearchHistoryManager.getHistory(getApplication())
     }
 
-    fun onQueryChange(text: String) {
-        _query.value = text
+    fun selectHistoryItem(q: String) { _query.value = q }
+
+    fun clearHistory() {
+        SearchHistoryManager.clear(getApplication())
+        _history.value = emptyList()
     }
 
     fun refresh() = viewModelScope.launch {
         _ui.value = EquipmentUiState.Loading
         runCatching { repo.fetchEquipment() }
-            .onSuccess { list ->
-                _ui.value = EquipmentUiState.Success(list)
-                Log.d("EquipmentVM", "Fetched ${list.size} items")
-            }
-            .onFailure { e ->
-                _ui.value = EquipmentUiState.Error(e.localizedMessage ?: "Unknown error")
-                Log.e("EquipmentVM", "Network / parse error", e)
-            }
+            .onSuccess { _ui.value = EquipmentUiState.Success(it) }
+            .onFailure { _ui.value = EquipmentUiState.Error(it.localizedMessage ?: "Unknown error") }
     }
 }

@@ -1,10 +1,13 @@
-package beatrate.pro.equipmentapp.ui.screens       // ← ваш package
+package beatrate.pro.equipmentapp.ui.screens        // ← ваш package
 
+/* ---------- imports ---------- */
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -22,8 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import beatrate.pro.equipmentapp.data.EquipmentItem
-import beatrate.pro.equipmentapp.ui.EquipmentUiState
-import beatrate.pro.equipmentapp.ui.EquipmentViewModel
+import beatrate.pro.equipmentapp.ui.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,9 +33,11 @@ fun EquipmentScreen(
     nav: NavController,
     vm: EquipmentViewModel = viewModel()
 ) {
+    /* -------- состояния из ViewModel -------- */
     val uiState by vm.ui.collectAsState()
     val query   by vm.query.collectAsState()
     val list    by vm.filtered.collectAsState()
+    val history by vm.history.collectAsState()
 
     Scaffold(
         topBar = {
@@ -41,27 +45,27 @@ fun EquipmentScreen(
                 title = { Text("Оборудование") },
                 navigationIcon = {
                     IconButton(onClick = { nav.navigateUp() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = null)
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
                     }
                 }
             )
         }
-    ) { inner ->
+    ) { innerPadding ->
+
         when (uiState) {
-            EquipmentUiState.Loading ->
-                Box(
-                    Modifier
-                        .fillMaxSize()
-                        .padding(inner),
-                    contentAlignment = Alignment.Center
-                ) { CircularProgressIndicator() }
+            EquipmentUiState.Loading -> Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) { CircularProgressIndicator() }
 
             is EquipmentUiState.Error -> {
                 val msg = (uiState as EquipmentUiState.Error).message
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .padding(inner),
+                        .padding(innerPadding),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -75,9 +79,11 @@ fun EquipmentScreen(
             is EquipmentUiState.Success -> {
                 Column(
                     Modifier
-                        .padding(inner)
+                        .padding(innerPadding)
                         .fillMaxSize()
                 ) {
+
+                    /* -------- поле поиска -------- */
                     OutlinedTextField(
                         value = query,
                         onValueChange = vm::onQueryChange,
@@ -85,11 +91,38 @@ fun EquipmentScreen(
                             .fillMaxWidth()
                             .padding(16.dp),
                         placeholder = { Text("Поиск оборудования") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        leadingIcon = { Icon(Icons.Default.Search, null) },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search)
+                        keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = { vm.commitQuery() })
                     )
 
+                    /* -------- история (чипы) -------- */
+                    if (history.isNotEmpty()) {
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(history) { h ->
+                                AssistChip(
+                                    onClick = { vm.selectHistoryItem(h) },
+                                    label = { Text(h) }
+                                )
+                            }
+                            /* кнопка «очистить» */
+                            item {
+                                AssistChip(
+                                    onClick = vm::clearHistory,
+                                    label  = { Text("🗑") }
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    /* -------- список оборудования -------- */
                     LazyColumn(
                         Modifier
                             .fillMaxSize()
@@ -106,7 +139,7 @@ fun EquipmentScreen(
     }
 }
 
-/* ---------- Карточка одного устройства ---------- */
+/* ---------- карточка оборудования ---------- */
 @Composable
 private fun EquipmentCard(item: EquipmentItem) {
     Card(
