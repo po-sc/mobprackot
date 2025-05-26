@@ -29,37 +29,25 @@ import com.google.android.material.snackbar.Snackbar
 
 class MainActivity : AppCompatActivity() {
     private lateinit var viewBinding: ActivityMainBinding
-
     private var imageCapture: ImageCapture? = null
-
     private lateinit var cameraExecutor: ExecutorService
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         viewBinding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(viewBinding.root)
-
-        // Request camera permissions
         if (allPermissionsGranted()) {
             startCamera()
         } else {
             requestPermissions()
         }
-
-        // Set up the listener for take photo button
         viewBinding.btnCaptureImage.setOnClickListener { takePhoto() }
         Toast.makeText(this, "click", Toast.LENGTH_SHORT).show()
         viewBinding.btnGallery.setOnClickListener { openGallery() }
-
         cameraExecutor = Executors.newSingleThreadExecutor()
     }
-
     private fun takePhoto() {
-
-        //Сохраняет дату в файл photos/date.txt
         val dateFormat = SimpleDateFormat(FILENAME_FORMAT, Locale.getDefault())
         val date = dateFormat.format(System.currentTimeMillis())
-
         try {
             val photosDir = File(baseContext.filesDir, "photos")
             if (!photosDir.exists()) {
@@ -76,61 +64,42 @@ class MainActivity : AppCompatActivity() {
         } catch (e: IOException) {
             e.printStackTrace()
         }
-
     }
     private fun openGallery() {
         val intent = Intent(this, GalleryActivity::class.java)
         startActivity(intent)
     }
-
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-
         cameraProviderFuture.addListener({
-            // Used to bind the lifecycle of cameras to the lifecycle owner
             val cameraProvider: ProcessCameraProvider = cameraProviderFuture.get()
-
-            // Preview
             val preview = Preview.Builder()
                 .build()
                 .also {
                     it.setSurfaceProvider(viewBinding.viewFinder.surfaceProvider)
                 }
-
             imageCapture = ImageCapture.Builder().build()
-
-            // Select back camera as a default
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
             try {
-                // Unbind use cases before rebinding
                 cameraProvider.unbindAll()
-
-                // Bind use cases to camera
                 cameraProvider.bindToLifecycle(
                     this, cameraSelector, preview, imageCapture)
-
             } catch(exc: Exception) {
                 Log.e(TAG, "Use case binding failed", exc)
             }
-
         }, ContextCompat.getMainExecutor(this))
     }
-
     private fun requestPermissions() {
         activityResultLauncher.launch(REQUIRED_PERMISSIONS)
     }
-
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(
             baseContext, it) == PackageManager.PERMISSION_GRANTED
     }
-
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
     }
-
     companion object {
         private const val TAG = "CameraXApp"
         private const val FILENAME_FORMAT = "yyyy-dd-MM-HH-mm-ss-SSS"
@@ -143,11 +112,9 @@ class MainActivity : AppCompatActivity() {
                 }
             }.toTypedArray()
     }
-
     private val activityResultLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions())
         { permissions ->
-            // Handle Permission granted/rejected
             var permissionGranted = true
             permissions.entries.forEach {
                 if (it.key in REQUIRED_PERMISSIONS && it.value == false)

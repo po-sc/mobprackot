@@ -12,7 +12,7 @@
     <Button
         android:id="@+id/buttonManually2"
         android:layout_width="159dp"
-        android:layout_height="47dp"
+        android:layout_height="48dp"
         android:backgroundTint="#F0AF4E"
         android:text="FManagerNext"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -25,7 +25,7 @@
     <Button
         android:id="@+id/buttonNavi2"
         android:layout_width="156dp"
-        android:layout_height="46dp"
+        android:layout_height="48dp"
         android:backgroundTint="#F0AF4E"
         android:text="NavigationNext"
         app:layout_constraintBottom_toBottomOf="parent"

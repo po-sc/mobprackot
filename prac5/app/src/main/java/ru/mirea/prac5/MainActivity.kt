@@ -1,3 +1,5 @@
+@file:Suppress("PreviewAnnotationInFunctionWithParameters")
+
 package ru.mirea.prac5
 
 import android.graphics.Bitmap
@@ -20,6 +22,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
@@ -39,9 +42,7 @@ import java.io.File
 import java.io.IOException
 import javax.inject.Inject
 
-/**
- * Маршруты для навигации
- */
+
 object Routes {
     const val MAIN = "main"
     const val SAVED_PHOTOS = "saved_photos"
@@ -60,27 +61,22 @@ class MainActivity : ComponentActivity() {
     // Ключ доступа к Unsplash API
     private val ACCESS_KEY = "GFhSsMRZlkOWg5Y3nZGGcnSZ78JzDQy1zqkBsCOSe2M"
 
-    // Состояния для главного экрана
     private var imageUrl by mutableStateOf("")
     private var downloadedBitmap by mutableStateOf<Bitmap?>(null)
 
-    // Состояние для сохранённых фото (Room)
     private var savedPhotosList by mutableStateOf<List<PhotoEntity>>(emptyList())
 
-    // Состояние для сохранённых картинок (внутренняя память)
     private var savedImageFiles by mutableStateOf<List<File>>(emptyList())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Подписка на Flow из БД (SavedPhotosScreen)
         lifecycleScope.launch {
             db.photoDao().getAllPhotos().collect { photos ->
                 savedPhotosList = photos
             }
         }
 
-        // Загрузка файлов из внутренней памяти (SavedImagesScreen)
         savedImageFiles = filesDir.listFiles { file ->
             file.name.endsWith(".png") || file.name.endsWith(".jpg")
         }?.toList() ?: emptyList()
@@ -121,7 +117,6 @@ class MainActivity : ComponentActivity() {
                         onDownloadImageFromLink = { url -> downloadImageFromLink(url) },
                         savedPhotos = savedPhotosList,
                         savedImageFiles = savedImageFiles,
-                        // функция для обновления списка файлов после worker
                         refreshSavedFiles = {
                             savedImageFiles = filesDir.listFiles { file ->
                                 file.name.endsWith(".png") || file.name.endsWith(".jpg")
@@ -133,7 +128,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /** Загрузить случайное фото с Unsplash и сохранить в БД **/
     private fun loadRandomPhoto() {
         val call = unsplashService.getRandomPhoto(ACCESS_KEY)
         call.enqueue(object : Callback<UnsplashPhoto> {
@@ -166,7 +160,6 @@ class MainActivity : ComponentActivity() {
         })
     }
 
-    /** Загрузить картинку по ссылке, сохранить во внутреннюю память **/
     private fun downloadImageFromLink(url: String) {
         lifecycleScope.launch {
             try {
@@ -183,7 +176,6 @@ class MainActivity : ComponentActivity() {
 
                         Toast.makeText(this@MainActivity, "Изображение сохранено во внутреннюю память", Toast.LENGTH_SHORT).show()
 
-                        // Обновим список сохранённых файлов
                         savedImageFiles = filesDir.listFiles { file ->
                             file.name.endsWith(".png") || file.name.endsWith(".jpg")
                         }?.toList() ?: emptyList()
@@ -217,56 +209,9 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/** Функция создаёт NavHost и навигационные графы для трёх экранов */
-@Composable
-fun AppNavHost(
-    navController: NavHostController,
-    imageUrl: String,
-    downloadedBitmap: Bitmap?,
-    onLoadRandomPhoto: () -> Unit,
-    onDownloadImageFromLink: (String) -> Unit,
-    savedPhotos: List<PhotoEntity>,
-    savedImageFiles: List<File>,
-    refreshSavedFiles: () -> Unit
-) {
-    NavHost(navController = navController, startDestination = Routes.MAIN) {
-        composable(route = Routes.MAIN) {
-            MainScreenUI(
-                imageUrl = imageUrl,
-                downloadedBitmap = downloadedBitmap,
-                onLoadRandomPhoto = onLoadRandomPhoto,
-                onDownloadImageFromLink = onDownloadImageFromLink,
-                // Добавим кнопку, запускающую WorkManager:
-                onStartWorker = {
-                    val workManager = WorkManager.getInstance(it)
-                    val photoUrl = "https://random.imagecdn.app/500/500"
-                    // Пакуем url в inputData
-                    val inputData = workDataOf("PHOTO_URL" to photoUrl)
-
-                    val request = OneTimeWorkRequestBuilder<DownloadWorker>()
-                        .setInputData(inputData)
-                        .build()
-
-                    workManager.enqueue(request)
-
-                    Toast.makeText(it, "WorkManager запущен, фото сгенерируется в фоне", Toast.LENGTH_SHORT).show()
-                },
-                refreshSavedFiles = refreshSavedFiles
-            )
-        }
-        composable(route = Routes.SAVED_PHOTOS) {
-            SavedPhotosScreen(photos = savedPhotos)
-        }
-        composable(route = Routes.SAVED_IMAGES) {
-            SavedImagesScreen(imageFiles = savedImageFiles)
-        }
-    }
-}
-
 // ---------- Экраны ---------- //
-
-/** Главный экран. Добавлена кнопка запуска Worker. */
 @Composable
+
 fun MainScreenUI(
     imageUrl: String,
     downloadedBitmap: Bitmap?,
@@ -306,7 +251,6 @@ fun MainScreenUI(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Отображение изображения
         Box(
             modifier = Modifier.fillMaxWidth().height(300.dp),
             contentAlignment = Alignment.Center
@@ -343,8 +287,6 @@ fun MainScreenUI(
         // Кнопка запуска Worker
         Button(onClick = {
             onStartWorker(context)
-            // Через пару секунд Worker скачает файл. Обновим SavedImages:
-            // (можно подождать Worker, но проще вызвать refreshSavedFiles() позже)
             refreshSavedFiles()
         }) {
             Text("Запустить WorkManager")
@@ -352,7 +294,49 @@ fun MainScreenUI(
     }
 }
 
-/** Экран со списком сохранённых данных о фото (Room) */
+@Composable
+fun AppNavHost(
+    navController: NavHostController,
+    imageUrl: String,
+    downloadedBitmap: Bitmap?,
+    onLoadRandomPhoto: () -> Unit,
+    onDownloadImageFromLink: (String) -> Unit,
+    savedPhotos: List<PhotoEntity>,
+    savedImageFiles: List<File>,
+    refreshSavedFiles: () -> Unit
+) {
+    NavHost(navController = navController, startDestination = Routes.MAIN) {
+        composable(route = Routes.MAIN) {
+            MainScreenUI(
+                imageUrl = imageUrl,
+                downloadedBitmap = downloadedBitmap,
+                onLoadRandomPhoto = onLoadRandomPhoto,
+                onDownloadImageFromLink = onDownloadImageFromLink,
+                onStartWorker = {
+                    val workManager = WorkManager.getInstance(it)
+                    val photoUrl = "https://random.imagecdn.app/500/500"
+                    val inputData = workDataOf("PHOTO_URL" to photoUrl)
+
+                    val request = OneTimeWorkRequestBuilder<DownloadWorker>()
+                        .setInputData(inputData)
+                        .build()
+
+                    workManager.enqueue(request)
+
+                    Toast.makeText(it, "WorkManager запущен, фото сгенерируется в фоне", Toast.LENGTH_SHORT).show()
+                },
+                refreshSavedFiles = refreshSavedFiles
+            )
+        }
+        composable(route = Routes.SAVED_PHOTOS) {
+            SavedPhotosScreen(photos = savedPhotos)
+        }
+        composable(route = Routes.SAVED_IMAGES) {
+            SavedImagesScreen(imageFiles = savedImageFiles)
+        }
+    }
+}
+
 @Composable
 fun SavedPhotosScreen(photos: List<PhotoEntity>) {
     Column(
@@ -373,7 +357,6 @@ fun SavedPhotosScreen(photos: List<PhotoEntity>) {
     }
 }
 
-/** Экран со списком сохранённых изображений */
 @Composable
 fun SavedImagesScreen(imageFiles: List<File>) {
     Column(

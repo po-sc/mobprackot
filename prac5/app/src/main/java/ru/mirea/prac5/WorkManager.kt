@@ -18,10 +18,8 @@ class DownloadWorker(
     override fun doWork(): Result {
         val url = inputData.getString("PHOTO_URL") ?: return Result.failure()
         try {
-            // Скачаем картинку по URL
             val bitmap = downloadBitmap(url) ?: return Result.failure()
 
-            // Сохраним файл во внутреннюю память
             val filename = "image_worker_${System.currentTimeMillis()}.png"
             applicationContext.openFileOutput(filename, Context.MODE_PRIVATE).use { fos ->
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
