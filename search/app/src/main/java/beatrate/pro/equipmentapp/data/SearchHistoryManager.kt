@@ -4,39 +4,30 @@ import android.content.Context
 import android.content.Context.MODE_PRIVATE
 
 object SearchHistoryManager {
-
     private const val PREF      = "search_history_prefs"
     private const val KEY_LIST  = "history_csv"
-    private const val MAX_ITEMS = 10
+    private const val MAX       = 10
     private const val SEP       = "|"
 
-    private fun loadList(ctx: Context): MutableList<String> =
+    private fun load(ctx: Context) =
         ctx.getSharedPreferences(PREF, MODE_PRIVATE)
             .getString(KEY_LIST, "")!!
-            .split(SEP)
-            .filter { it.isNotBlank() }
-            .toMutableList()
+            .split(SEP).filter { it.isNotBlank() }.toMutableList()
 
-    private fun saveList(ctx: Context, list: List<String>) {
+    private fun save(ctx: Context, list: List<String>) =
         ctx.getSharedPreferences(PREF, MODE_PRIVATE)
-            .edit()
-            .putString(KEY_LIST, list.joinToString(SEP))
-            .apply()
+            .edit().putString(KEY_LIST, list.joinToString(SEP)).apply()
+
+    fun get(ctx: Context): List<String> = load(ctx)
+
+    fun add(ctx: Context, q: String) {
+        if (q.isBlank()) return
+        val list = load(ctx)
+        list.remove(q)
+        list.add(0, q)
+        if (list.size > MAX) list.removeLast()
+        save(ctx, list)
     }
 
-    /** вернуть список (уже без пустых строк) */
-    fun getHistory(ctx: Context): List<String> = loadList(ctx)
-
-    /** добавить запрос (уникально, в начало) */
-    fun addQuery(ctx: Context, query: String) {
-        if (query.isBlank()) return
-        val list = loadList(ctx)
-        list.remove(query)                // убираем дубликаты
-        list.add(0, query)                // кладём в начало
-        if (list.size > MAX_ITEMS) list.removeLast()
-        saveList(ctx, list)
-    }
-
-    /** очистить историю */
-    fun clear(ctx: Context) = saveList(ctx, emptyList())
+    fun clear(ctx: Context) = save(ctx, emptyList())
 }
